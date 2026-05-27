@@ -1,7 +1,7 @@
 """Utility functions for InkPen"""
 
-from PyQt5.QtGui import QColor, QIcon, QPixmap, QPainter, QBrush, QPen
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QColor, QIcon, QPixmap, QPainter, QBrush, QPen, QPolygon
+from PyQt5.QtCore import Qt, QSize, QPoint
 import math
 
 
@@ -24,7 +24,9 @@ def create_tool_icon(color: QColor, tool_name: str, size: int = 24) -> QIcon:
         # Draw pen icon
         painter.setPen(QPen(color, 2))
         painter.drawLine(2, 20, 15, 7)
-        painter.drawPolyline([(15, 7), (18, 4), (20, 6), (17, 9)])
+        painter.drawPolyline(QPolygon([
+            QPoint(15, 7), QPoint(18, 4), QPoint(20, 6), QPoint(17, 9)
+        ]))
         
     elif tool_name == "eraser":
         # Draw eraser icon
@@ -42,7 +44,10 @@ def create_tool_icon(color: QColor, tool_name: str, size: int = 24) -> QIcon:
     elif tool_name == "cursor":
         # Draw cursor/pointer icon
         painter.setPen(QPen(color, 2))
-        painter.drawPolyline([(2, 2), (2, 16), (6, 12), (10, 18), (13, 17), (7, 11), (13, 11)])
+        painter.drawPolyline(QPolygon([
+            QPoint(2, 2), QPoint(2, 16), QPoint(6, 12), QPoint(10, 18),
+            QPoint(13, 17), QPoint(7, 11), QPoint(13, 11)
+        ]))
         
     elif tool_name == "text":
         # Draw text icon
@@ -61,7 +66,9 @@ def create_tool_icon(color: QColor, tool_name: str, size: int = 24) -> QIcon:
         painter.setBrush(QBrush(color))
         painter.drawEllipse(2, 2, 8, 8)
         painter.setPen(QPen(color, 2))
-        painter.drawPolyline([(12, 8), (18, 2), (20, 4)])
+        painter.drawPolyline(QPolygon([
+            QPoint(12, 8), QPoint(18, 2), QPoint(20, 4)
+        ]))
         
     painter.end()
     return QIcon(pixmap)
