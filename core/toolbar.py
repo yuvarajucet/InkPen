@@ -3,14 +3,12 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QColorDialog,
-    QComboBox,
     QLabel,
     QSlider
 )
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPoint
 import qtawesome as qta
-
 from core.constants import Tool
 
 
@@ -21,6 +19,8 @@ class Toolbar(QWidget):
 
         self.overlay = overlay
 
+        self.drag_pos = QPoint()
+
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.FramelessWindowHint |
@@ -29,55 +29,50 @@ class Toolbar(QWidget):
 
         self.setStyleSheet('''
             QWidget {
-                background: rgba(30, 30, 30, 230);
-                border-radius: 12px;
+                background: rgba(20,20,20,230);
+                border-radius: 14px;
                 color: white;
             }
 
             QPushButton {
-                background: #2d2d2d;
-                border: none;
-                padding: 8px;
+                background: #2c2c2c;
                 border-radius: 8px;
-                color: white;
+                padding: 8px;
                 min-width: 42px;
                 min-height: 42px;
             }
 
             QPushButton:hover {
-                background: #4a4a4a;
+                background: #4d4d4d;
             }
         ''')
 
         layout = QHBoxLayout()
 
         cursor_btn = QPushButton()
-        cursor_btn.setIcon(qta.icon('fa5s.mouse-pointer'))
+        cursor_btn.setIcon(qta.icon('fa5s.mouse-pointer', color='white'))
 
         pen_btn = QPushButton()
-        pen_btn.setIcon(qta.icon('fa5s.pen'))
+        pen_btn.setIcon(qta.icon('fa5s.pen', color='white'))
 
         highlighter_btn = QPushButton()
-        highlighter_btn.setIcon(qta.icon('fa5s.highlighter'))
+        highlighter_btn.setIcon(qta.icon('fa5s.highlighter', color='yellow'))
 
         eraser_btn = QPushButton()
-        eraser_btn.setIcon(qta.icon('fa5s.eraser'))
+        eraser_btn.setIcon(qta.icon('fa5s.eraser', color='white'))
 
         text_btn = QPushButton()
-        text_btn.setIcon(qta.icon('fa5s.font'))
+        text_btn.setIcon(qta.icon('fa5s.font', color='white'))
 
         color_btn = QPushButton()
-        color_btn.setIcon(qta.icon('fa5s.palette'))
+        color_btn.setIcon(qta.icon('fa5s.palette', color='white'))
 
         clear_btn = QPushButton()
-        clear_btn.setIcon(qta.icon('fa5s.trash'))
-
-        shape_combo = QComboBox()
-        shape_combo.addItems(["Rectangle", "Ellipse", "Line"])
+        clear_btn.setIcon(qta.icon('fa5s.trash', color='red'))
 
         size_slider = QSlider(Qt.Orientation.Horizontal)
         size_slider.setMinimum(1)
-        size_slider.setMaximum(20)
+        size_slider.setMaximum(25)
         size_slider.setValue(4)
 
         cursor_btn.clicked.connect(lambda: overlay.set_tool(Tool.CURSOR))
@@ -86,11 +81,9 @@ class Toolbar(QWidget):
         eraser_btn.clicked.connect(lambda: overlay.set_tool(Tool.ERASER))
         text_btn.clicked.connect(lambda: overlay.set_tool(Tool.TEXT))
 
-        clear_btn.clicked.connect(overlay.clear_all)
-
         color_btn.clicked.connect(self.pick_color)
 
-        shape_combo.currentTextChanged.connect(self.select_shape)
+        clear_btn.clicked.connect(overlay.clear_all)
 
         size_slider.valueChanged.connect(overlay.set_pen_size)
 
@@ -99,14 +92,15 @@ class Toolbar(QWidget):
         layout.addWidget(highlighter_btn)
         layout.addWidget(eraser_btn)
         layout.addWidget(text_btn)
-        layout.addWidget(shape_combo)
         layout.addWidget(QLabel("Size"))
         layout.addWidget(size_slider)
         layout.addWidget(color_btn)
         layout.addWidget(clear_btn)
 
         self.setLayout(layout)
+
         self.adjustSize()
+
         self.move(100, 100)
 
     def pick_color(self):
@@ -116,13 +110,17 @@ class Toolbar(QWidget):
         if color.isValid():
             self.overlay.set_color(color)
 
-    def select_shape(self, text):
+    def mousePressEvent(self, event):
 
-        if text == "Rectangle":
-            self.overlay.set_tool(Tool.RECTANGLE)
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_pos = event.globalPosition().toPoint()
 
-        elif text == "Ellipse":
-            self.overlay.set_tool(Tool.ELLIPSE)
+    def mouseMoveEvent(self, event):
 
-        elif text == "Line":
-            self.overlay.set_tool(Tool.LINE)
+        if event.buttons() == Qt.MouseButton.LeftButton:
+
+            delta = event.globalPosition().toPoint() - self.drag_pos
+
+            self.move(self.x() + delta.x(), self.y() + delta.y())
+
+            self.drag_pos = event.globalPosition().toPoint()

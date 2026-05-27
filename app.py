@@ -9,6 +9,8 @@ def main():
     overlay = OverlayWindow()
     toolbar = Toolbar(overlay)
 
+    overlay.set_toolbar(toolbar)
+
     toolbar.show()
 
     sys.exit(app.exec())

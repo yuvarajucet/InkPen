@@ -5,7 +5,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['keyboard'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -22,9 +22,6 @@ exe = EXE(
     exclude_binaries=True,
     name='InkPen',
     debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
     console=False,
 )
 
