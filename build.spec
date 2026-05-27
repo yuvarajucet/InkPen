@@ -1,7 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller configuration for InkPen"""
+from pathlib import Path
 
 block_cipher = None
+icon_path = Path(__file__).resolve().with_name("icon.ico")
 
 a = Analysis(
     ['app.py'],
@@ -39,7 +41,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.ico',
+    icon=str(icon_path) if icon_path.exists() else None,
 )
 
 coll = COLLECT(
