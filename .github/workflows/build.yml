@@ -1,0 +1,43 @@
+name: Build InkPen
+
+on:
+  push:
+    branches:
+      - development
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build EXE
+        run: |
+          pyinstaller build.spec
+
+      - name: Zip Artifact
+        run: |
+          powershell Compress-Archive dist/InkPen dist/InkPen.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: release-${{ github.run_number }}
+          name: InkPen Release ${{ github.run_number }}
+          files: |
+            dist/InkPen.zip
