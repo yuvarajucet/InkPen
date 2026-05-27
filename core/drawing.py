@@ -39,6 +39,10 @@ class DrawingCanvas(QWidget):
         # Set transparent background
         self.setStyleSheet("background-color: transparent;")
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.set_tool(self.drawing_state.current_tool)
         
     def clear_canvas(self):
         """Clear all drawn content"""
@@ -49,6 +53,11 @@ class DrawingCanvas(QWidget):
     def set_tool(self, tool_type: ToolType):
         """Set the current drawing tool"""
         self.drawing_state.current_tool = tool_type
+        # Cursor mode is browse-only; draw tools must capture mouse input.
+        self.setAttribute(
+            Qt.WA_TransparentForMouseEvents,
+            tool_type == ToolType.CURSOR
+        )
         self.update_cursor(tool_type)
         
     def set_pen_size(self, size: int):

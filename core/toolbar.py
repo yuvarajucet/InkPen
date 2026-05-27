@@ -107,6 +107,7 @@ class ToolBar(QWidget):
         btn_cursor.setIcon(create_tool_icon(QColor(200, 200, 200), "cursor", 32))
         btn_cursor.setIconSize(QSize(28, 28))
         btn_cursor.setToolTip("Cursor (C)")
+        btn_cursor.setCheckable(True)
         btn_cursor.clicked.connect(lambda: self.select_tool(ToolType.CURSOR))
         tools_layout.addWidget(btn_cursor)
         self.btn_cursor = btn_cursor
