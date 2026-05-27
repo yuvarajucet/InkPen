@@ -1,0 +1,154 @@
+name: Build and Release InkPen
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+    
+    - name: Build executable with PyInstaller
+      run: |
+        pyinstaller build.spec
+    
+    - name: Create ZIP archive
+      if: success()
+      run: |
+        cd dist
+        powershell -Command "Compress-Archive -Path InkPen -DestinationPath InkPen.zip"
+        cd ..
+    
+    - name: Upload artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: inkpen-build-${{ matrix.python-version }}
+        path: |
+          dist/InkPen
+          dist/InkPen.zip
+        retention-days: 7
+    
+    - name: Get version
+      id: version
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        $version = "${{ github.ref }}" -replace 'refs/tags/', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/') && success() && matrix.python-version == '3.10'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/InkPen.zip
+          dist/InkPen/InkPen.exe
+        draft: false
+        prerelease: false
+        name: Release ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## InkPen ${{ steps.version.outputs.VERSION }}
+          
+          ### What's New
+          - Improved UI and performance
+          - Enhanced drawing tools
+          - Better overlay management
+          
+          ### Installation
+          1. Download `InkPen.zip`
+          2. Extract the archive
+          3. Run `InkPen\InkPen.exe`
+          
+          ### System Requirements
+          - Windows 7 or later
+          - 256MB RAM minimum
+          
+          ### Files Included
+          - `InkPen.exe` - Main executable
+          - Supporting libraries and resources
+          
+          ---
+          For more information, visit the [GitHub repository](https://github.com/${{ github.repository }})
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-build:
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: inkpen-build-3.10
+    
+    - name: Test executable
+      run: |
+        # Basic sanity check - executable should exist and be runnable
+        if (-not (Test-Path "InkPen\InkPen.exe")) {
+          Write-Host "Error: InkPen.exe not found!"
+          exit 1
+        }
+        Write-Host "✓ InkPen.exe found"
+        
+        # Verify ZIP file
+        if (-not (Test-Path "InkPen.zip")) {
+          Write-Host "Error: InkPen.zip not found!"
+          exit 1
+        }
+        Write-Host "✓ InkPen.zip created successfully"
+        
+        # Check file size
+        $exeSize = (Get-Item "InkPen\InkPen.exe").Length
+        $zipSize = (Get-Item "InkPen.zip").Length
+        
+        Write-Host "✓ Executable size: $([Math]::Round($exeSize/1MB, 2)) MB"
+        Write-Host "✓ Archive size: $([Math]::Round($zipSize/1MB, 2)) MB"
+
+  cleanup:
+    runs-on: windows-latest
+    if: always()
+    needs: [build, test-build]
+    
+    steps:
+    - name: Clean up old artifacts
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const artifacts = await github.rest.actions.listArtifactsForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          for (const artifact of artifacts.data.artifacts) {
+            // Keep only the 5 most recent
+            if (artifacts.data.artifacts.indexOf(artifact) >= 5) {
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id,
+              });
+            }
+          }

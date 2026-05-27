@@ -1,226 +1,39 @@
-from PyQt6.QtWidgets import QWidget, QApplication, QInputDialog
-from PyQt6.QtCore import Qt, QRect
-from PyQt6.QtGui import QPainter, QPen, QColor, QFont
-from core.constants import Tool
-import keyboard
+"""Overlay window management for InkPen"""
+
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtWidgets import QApplication
+from .drawing import DrawingCanvas
 
 
-class OverlayWindow(QWidget):
-
+class OverlayWindow(QMainWindow):
+    """The main transparent overlay window for drawing"""
+    
     def __init__(self):
         super().__init__()
-
-        self.toolbar = None
-
+        self.canvas = DrawingCanvas()
+        
+        # Set up window properties for overlay
+        self.setWindowTitle("InkPen Overlay")
+        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
+            Qt.WindowStaysOnTopHint |
+            Qt.FramelessWindowHint |
+            Qt.Tool
         )
-
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
-        screen = QApplication.primaryScreen().geometry()
-        self.setGeometry(screen)
-
-        self.current_tool = Tool.CURSOR
-        self.current_color = QColor("red")
-        self.pen_size = 4
-
-        self.canvas_enabled = False
-
-        self.strokes = []
-        self.current_points = []
-
-        self.text_items = []
-
-        self.drawing = False
-
-        self.toggle_canvas(False)
-
-        keyboard.add_hotkey("ctrl+1", self.disable_canvas)
-
-        self.showFullScreen()
-
-    def set_toolbar(self, toolbar):
-        self.toolbar = toolbar
-
-    def toggle_canvas(self, enabled):
-
-        self.canvas_enabled = enabled
-
-        if enabled:
-            self.setAttribute(
-                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-                False
-            )
-        else:
-            self.setAttribute(
-                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-                True
-            )
-
-        self.update()
-
-    def disable_canvas(self):
-        self.current_tool = Tool.CURSOR
-        self.toggle_canvas(False)
-
-    def set_tool(self, tool):
-
-        self.current_tool = tool
-
-        if tool == Tool.CURSOR:
-            self.toggle_canvas(False)
-        else:
-            self.toggle_canvas(True)
-
-    def set_color(self, color):
-        self.current_color = color
-
-    def set_pen_size(self, size):
-        self.pen_size = size
-
-    def clear_all(self):
-        self.strokes.clear()
-        self.text_items.clear()
-        self.update()
-
-    def mousePressEvent(self, event):
-
-        if not self.canvas_enabled:
-            return
-
-        if event.button() != Qt.MouseButton.LeftButton:
-            return
-
-        pos = event.position().toPoint()
-
-        if self.current_tool in [Tool.PEN, Tool.HIGHLIGHTER]:
-            self.current_points = [pos]
-            self.drawing = True
-
-        elif self.current_tool == Tool.ERASER:
-            self.erase_stroke(pos)
-
-        elif self.current_tool == Tool.TEXT:
-
-            text, ok = QInputDialog.getText(
-                self,
-                "InkPen",
-                "Enter text"
-            )
-
-            if ok and text:
-
-                self.text_items.append({
-                    "text": text,
-                    "position": pos,
-                    "color": self.current_color,
-                    "size": self.pen_size * 4
-                })
-
-                self.update()
-
-    def mouseMoveEvent(self, event):
-
-        if not self.canvas_enabled:
-            return
-
-        if not self.drawing:
-            return
-
-        pos = event.position().toPoint()
-
-        self.current_points.append(pos)
-
-        self.update()
-
-    def mouseReleaseEvent(self, event):
-
-        if not self.canvas_enabled:
-            return
-
-        if self.current_tool in [Tool.PEN, Tool.HIGHLIGHTER]:
-
-            if self.current_points:
-
-                self.strokes.append({
-                    "points": self.current_points.copy(),
-                    "color": QColor(self.current_color),
-                    "width": self.pen_size,
-                    "tool": self.current_tool
-                })
-
-        self.current_points = []
-        self.drawing = False
-
-        self.update()
-
-    def erase_stroke(self, pos):
-
-        for stroke in list(self.strokes):
-
-            for point in stroke["points"]:
-
-                if abs(point.x() - pos.x()) < 20 and abs(point.y() - pos.y()) < 20:
-                    self.strokes.remove(stroke)
-                    self.update()
-                    return
-
-    def paintEvent(self, event):
-
-        painter = QPainter(self)
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        for stroke in self.strokes:
-
-            color = QColor(stroke["color"])
-
-            if stroke["tool"] == Tool.HIGHLIGHTER:
-                color.setAlpha(90)
-
-            pen = QPen(color, stroke["width"])
-
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-
-            painter.setPen(pen)
-
-            points = stroke["points"]
-
-            for i in range(1, len(points)):
-                painter.drawLine(points[i - 1], points[i])
-
-        if self.drawing and self.current_points:
-
-            color = QColor(self.current_color)
-
-            if self.current_tool == Tool.HIGHLIGHTER:
-                color.setAlpha(90)
-
-            pen = QPen(color, self.pen_size)
-
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-
-            painter.setPen(pen)
-
-            for i in range(1, len(self.current_points)):
-                painter.drawLine(
-                    self.current_points[i - 1],
-                    self.current_points[i]
-                )
-
-        for item in self.text_items:
-
-            painter.setPen(QPen(item["color"]))
-
-            font = QFont()
-            font.setPointSize(item["size"])
-
-            painter.setFont(font)
-
-            painter.drawText(
-                item["position"],
-                item["text"]
-            )
+        
+        # Set up the canvas as central widget
+        self.setCentralWidget(self.canvas)
+        
+        # Make window frameless and transparent
+        self.setStyleSheet("background-color: transparent;")
+        
+        # Cover entire screen
+        screen = QApplication.primaryScreen()
+        geom = screen.geometry()
+        self.setGeometry(geom)
+        
+    def get_canvas(self) -> DrawingCanvas:
+        """Get the canvas widget"""
+        return self.canvas

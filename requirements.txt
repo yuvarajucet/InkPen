@@ -1,4 +1,4 @@
-PyQt6
-qtawesome
-pyinstaller
-keyboard
+PyQt5>=5.15.0
+Pillow>=9.0.0
+pyinstaller>=5.0.0
+numpy>=1.21.0
