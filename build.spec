@@ -3,7 +3,9 @@
 from pathlib import Path
 
 block_cipher = None
-icon_path = Path(__file__).resolve().with_name("icon.ico")
+spec_file = globals().get("__file__", "build.spec")
+spec_dir = Path(spec_file).resolve().parent
+icon_path = spec_dir / "icon.ico"
 
 a = Analysis(
     ['app.py'],
