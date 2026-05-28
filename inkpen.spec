@@ -1,25 +1,32 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller configuration for InkPen"""
-from pathlib import Path
+"""
+PyInstaller spec file for InkPen
+Build command: pyinstaller inkpen.spec
+"""
+from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
-spec_file = globals().get("__file__", "build.spec")
-spec_dir = Path(spec_file).resolve().parent
-icon_path = spec_dir / "icon.ico"
 
 a = Analysis(
-    ['app.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'PyQt5.sip',
+        'PyQt5.QtCore',
+        'PyQt5.QtGui',
+        'PyQt5.QtWidgets',
+        'PyQt5.QtSvg',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'numpy', 'scipy', 'pandas'],
-    noarchive=False,
+    excludedimports=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -43,7 +50,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(icon_path) if icon_path.exists() else None,
+    icon='inkpen.ico',  # Optional: add icon file in the directory
 )
 
 coll = COLLECT(
@@ -54,5 +61,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='InkPen',
+    name='InkPen'
 )
