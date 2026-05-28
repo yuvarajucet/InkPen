@@ -4,103 +4,122 @@ on:
   push:
     branches:
       - development
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: Build InkPen EXE
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          architecture: 'x64'
+          python-version: "3.11"
+          architecture: "x64"
 
-      - name: Install dependencies
+      - name: Upgrade pip
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
-      - name: Build EXE with PyInstaller
-        run: |
-          pyinstaller inkpen.spec
-
-      - name: Create distribution folder
+      - name: Install dependencies
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "./release"
-          Copy-Item -Path "./dist/InkPen.exe" -Destination "./release/InkPen.exe"
+          pip install pyinstaller
+          if (Test-Path "requirements.txt") {
+            pip install -r requirements.txt
+          }
 
-      - name: Create ZIP archive
+      - name: Verify project files
         shell: pwsh
         run: |
-          cd ./release
-          7z a -tzip InkPen.zip InkPen.exe
-          cd ..
+          Write-Host "Checking files..."
 
-      - name: Get version
-        id: version
+          if (!(Test-Path "inkpen.py")) {
+            Write-Error "inkpen.py not found"
+            exit 1
+          }
+
+          if (Test-Path "inkpen.ico") {
+            Write-Host "Icon file found"
+          } else {
+            Write-Host "Icon file missing - build will continue without icon"
+          }
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          New-Item -ItemType Directory -Force -Path build
+
+          if (Test-Path "inkpen.spec") {
+            pyinstaller inkpen.spec --clean
+          }
+          else {
+            if (Test-Path "inkpen.ico") {
+              pyinstaller --onefile --windowed --icon=inkpen.ico inkpen.py
+            }
+            else {
+              pyinstaller --onefile --windowed inkpen.py
+            }
+          }
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist")) {
+            Write-Error "dist folder not generated"
+            exit 1
+          }
+
+          Get-ChildItem dist
+
+      - name: Prepare release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+
+          $exe = Get-ChildItem -Path dist -Filter *.exe | Select-Object -First 1
+
+          if ($null -eq $exe) {
+            Write-Error "No EXE generated"
+            exit 1
+          }
+
+          Copy-Item $exe.FullName release/
+
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path release/*.exe -DestinationPath release/InkPen.zip -Force
+
+      - name: Generate version
         shell: pwsh
         run: |
           $version = "v$(Get-Date -Format 'yyyy.MM.dd.HHmm')"
-          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VERSION=$version" >> $env:GITHUB_ENV
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/development')
         with:
           tag_name: ${{ env.VERSION }}
           name: InkPen Release ${{ env.VERSION }}
-          body: |
-            ## InkPen - Screen Annotation Overlay Tool
-
-            Latest build of InkPen for Windows.
-
-            ### Files:
-            - **InkPen.exe** - Standalone executable
-            - **InkPen.zip** - Compressed executable
-
-            **Windows 10/11 (x64) Required**
           files: |
-            release/InkPen.exe
+            release/*.exe
             release/InkPen.zip
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: InkPen-executable
+          name: InkPen-Build
           path: |
-            release/InkPen.exe
+            release/*.exe
             release/InkPen.zip
-          retention-days: 30
-
-  cleanup:
-    name: Cleanup build artifacts
-    runs-on: windows-latest
-    if: always()
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Remove build and dist folders
-        shell: pwsh
-        run: |
-          if (Test-Path -Path "build") { Remove-Item -Path "build" -Recurse -Force }
-          if (Test-Path -Path "dist") { Remove-Item -Path "dist" -Recurse -Force }
-          if (Test-Path -Path "__pycache__") { Remove-Item -Path "__pycache__" -Recurse -Force }
