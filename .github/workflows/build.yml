@@ -33,7 +33,7 @@ jobs:
 
       - name: Build EXE with PyInstaller
         run: |
-          pyinstaller inkpen.spec --onefile --distpath ./dist --buildpath ./build
+          pyinstaller inkpen.spec
 
       - name: Create distribution folder
         shell: pwsh
