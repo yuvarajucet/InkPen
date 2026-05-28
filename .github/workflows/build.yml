@@ -1,3 +1,4 @@
+```yaml
 name: Build and Release InkPen
 
 on:
@@ -13,7 +14,7 @@ jobs:
   build:
     name: Build InkPen EXE
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,7 +22,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           architecture: 'x64'
@@ -36,11 +37,13 @@ jobs:
           pyinstaller inkpen.spec --onefile --distpath ./dist --buildpath ./build
 
       - name: Create distribution folder
+        shell: pwsh
         run: |
-          mkdir -p ./release
+          New-Item -ItemType Directory -Force -Path "./release"
           Copy-Item -Path "./dist/InkPen.exe" -Destination "./release/InkPen.exe"
 
       - name: Create ZIP archive
+        shell: pwsh
         run: |
           cd ./release
           7z a -tzip InkPen.zip InkPen.exe
@@ -48,46 +51,26 @@ jobs:
 
       - name: Get version
         id: version
+        shell: pwsh
         run: |
           $version = "v$(Get-Date -Format 'yyyy.MM.dd.HHmm')"
           echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/development')
         with:
           tag_name: ${{ env.VERSION }}
           name: InkPen Release ${{ env.VERSION }}
           body: |
             ## InkPen - Screen Annotation Overlay Tool
-            
+
             Latest build of InkPen for Windows.
-            
+
             ### Files:
-            - **InkPen.exe** - Standalone executable (no installation required)
+            - **InkPen.exe** - Standalone executable
             - **InkPen.zip** - Compressed executable
-            
-            ### Quick Start:
-            1. Download `InkPen.exe`
-            2. Run it directly (no installation needed)
-            3. The toolbar will appear - use tools to draw on your screen
-            
-            ### Features:
-            - ✏️ Pen tool with customizable colors and sizes
-            - 🎨 Highlighter tool with transparency
-            - ✂️ Shape tools (line, arrow, rectangle, ellipse, triangle)
-            - 📝 Text tool for adding text annotations
-            - 🗑️ Eraser tool (removes entire connected strokes)
-            - 🎯 Cursor mode for normal clicking
-            - ⌨️ Keyboard shortcuts and undo support
-            - 💾 Persistent settings (colors, sizes, toolbar position)
-            
-            ### Usage:
-            - Select any tool from the floating toolbar
-            - Draw/annotate over any application
-            - Clear All to remove all drawings
-            - Close button to exit the application
-            
+
             **Windows 10/11 (x64) Required**
           files: |
             release/InkPen.exe
@@ -98,7 +81,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: InkPen-executable
           path: |
@@ -111,13 +94,15 @@ jobs:
     runs-on: windows-latest
     if: always()
     needs: build
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Remove build and dist folders
+        shell: pwsh
         run: |
           if (Test-Path -Path "build") { Remove-Item -Path "build" -Recurse -Force }
           if (Test-Path -Path "dist") { Remove-Item -Path "dist" -Recurse -Force }
           if (Test-Path -Path "__pycache__") { Remove-Item -Path "__pycache__" -Recurse -Force }
+```
